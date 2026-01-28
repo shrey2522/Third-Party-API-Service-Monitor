@@ -68,27 +68,30 @@ const VendorDetails = () => {
         <div className="min-h-screen bg-cream-50 dark:bg-gray-900 text-gray-900 dark:text-white p-6 md:p-12 transition-colors duration-300">
             <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" onClick={() => navigate('/dashboard')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
-                            <ArrowLeft size={24} />
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-2 sm:gap-4 w-full sm:w-auto">
+                        <Button variant="ghost" onClick={() => navigate('/dashboard')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white flex-shrink-0 mt-1">
+                            <ArrowLeft size={20} className="sm:hidden" />
+                            <ArrowLeft size={24} className="hidden sm:block" />
                         </Button>
-                        <div>
-                            <h1 className="text-3xl font-bold flex items-center gap-3">
-                                {vendor.name}
-                                <span className={`px-3 py-1 text-sm rounded-full ${vendor.isActive ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                <h1 className="text-2xl sm:text-3xl font-bold break-words">
+                                    {vendor.name}
+                                </h1>
+                                <span className={`px-3 py-1 text-xs sm:text-sm rounded-full w-fit ${vendor.isActive ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
                                     {vendor.isActive ? 'Monitoring Active' : 'Paused'}
                                 </span>
-                            </h1>
-                            <div className="flex items-center gap-3">
-                                <a href={vendor.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                                <a href={vendor.url} target="_blank" rel="noopener noreferrer" className="text-sm sm:text-base text-blue-400 hover:text-blue-300 break-all">
                                     {vendor.url}
                                 </a>
-                                <span className="text-gray-500 text-sm">• Check every {vendor.checkFrequency} min</span>
+                                <span className="text-gray-500 text-xs sm:text-sm">• Check every {vendor.checkFrequency} min</span>
                             </div>
                         </div>
                     </div>
-                    <Button variant="secondary" onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2">
+                    <Button variant="secondary" onClick={() => setIsEditModalOpen(true)} className="flex items-center gap-2 text-sm sm:text-base px-3 py-2 w-full sm:w-auto justify-center flex-shrink-0">
                         <Edit2 size={16} /> Edit
                     </Button>
                 </div>

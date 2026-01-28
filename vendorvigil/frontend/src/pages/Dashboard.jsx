@@ -66,19 +66,23 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-cream-50 dark:bg-gray-900 text-gray-900 dark:text-white p-6 md:p-12 transition-colors duration-300">
       <div className="max-w-7xl mx-auto">
-        <header className="flex justify-between items-center mb-12">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-12">
             <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-500 bg-clip-text text-transparent mb-2">
+                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-500 bg-clip-text text-transparent mb-2">
                     Dashboard
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400">Welcome back, {user?.name}</p>
+                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Welcome back, {user?.name}</p>
             </div>
-            <div className="flex gap-4">
-                <Button variant="primary" onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
-                    <Plus size={18} /> Add Monitor
+            <div className="flex gap-2 sm:gap-4 w-full sm:w-auto">
+                <Button variant="primary" onClick={() => setIsModalOpen(true)} className="flex items-center justify-center gap-1 sm:gap-2 flex-1 sm:flex-initial text-sm sm:text-base px-3 sm:px-4 py-2">
+                    <Plus size={18} className="flex-shrink-0" />
+                    <span className="hidden xs:inline">Add Monitor</span>
+                    <span className="xs:hidden">Add</span>
                 </Button>
-                <Button variant="danger" onClick={logout} className="flex items-center gap-2">
-                    <LogOut size={18} /> Logout
+                <Button variant="danger" onClick={logout} className="flex items-center justify-center gap-1 sm:gap-2 flex-1 sm:flex-initial text-sm sm:text-base px-3 sm:px-4 py-2">
+                    <LogOut size={18} className="flex-shrink-0" />
+                    <span className="hidden xs:inline">Logout</span>
+                    <span className="xs:hidden">Exit</span>
                 </Button>
             </div>
         </header>
