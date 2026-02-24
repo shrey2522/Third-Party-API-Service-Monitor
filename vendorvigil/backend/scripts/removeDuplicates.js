@@ -1,58 +1,65 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Vendor = require('../models/Vendor');
+const Log = require('../models/Log');
 
-/**
- * Remove duplicate vendors (keep only one of each unique URL)
- */
-const removeDuplicates = async () => {
+const removeDuplicateVendors = async () => {
     try {
         await mongoose.connect(process.env.MONGODB_URI);
         console.log('✅ Connected to MongoDB\n');
 
-        // Get all vendors
-        const vendors = await Vendor.find({});
-        console.log(`📊 Total vendors before cleanup: ${vendors.length}\n`);
+        const vendors = await Vendor.find({ isActive: true });
+        
+        // Group by URL
+        const urlMap = {};
+        vendors.forEach(vendor => {
+            if (!urlMap[vendor.url]) {
+                urlMap[vendor.url] = [];
+            }
+            urlMap[vendor.url].push(vendor);
+        });
 
-        // Track seen URLs
-        const seenUrls = new Set();
-        const duplicateIds = [];
+        let removedCount = 0;
 
-        for (const vendor of vendors) {
-            if (seenUrls.has(vendor.url)) {
-                // This is a duplicate
-                duplicateIds.push(vendor._id);
-                console.log(`🗑️  Found duplicate: ${vendor.name} (${vendor.url})`);
-            } else {
-                seenUrls.add(vendor.url);
+        for (const [url, vendorList] of Object.entries(urlMap)) {
+            if (vendorList.length > 1) {
+                console.log(`🔍 Found ${vendorList.length} duplicates for URL: ${url}`);
+                
+                // Sort by createdAt (keep the newest one)
+                vendorList.sort((a, b) => b.createdAt - a.createdAt);
+                
+                console.log(`   ✅ Keeping: "${vendorList[0].name}" (ID: ${vendorList[0]._id}) - Created: ${vendorList[0].createdAt}`);
+                
+                // Remove the rest
+                for (let i = 1; i < vendorList.length; i++) {
+                    const vendorToRemove = vendorList[i];
+                    console.log(`   ❌ Removing: "${vendorToRemove.name}" (ID: ${vendorToRemove._id}) - Created: ${vendorToRemove.createdAt}`);
+                    
+                    // Delete associated logs
+                    const deletedLogs = await Log.deleteMany({ vendorId: vendorToRemove._id });
+                    console.log(`      Deleted ${deletedLogs.deletedCount} associated logs`);
+                    
+                    // Delete the vendor
+                    await Vendor.deleteOne({ _id: vendorToRemove._id });
+                    removedCount++;
+                }
+                console.log('');
             }
         }
 
-        if (duplicateIds.length > 0) {
-            const result = await Vendor.deleteMany({ _id: { $in: duplicateIds } });
-            console.log(`\n✅ Removed ${result.deletedCount} duplicate(s)\n`);
+        if (removedCount === 0) {
+            console.log('✅ No duplicates found to remove!');
         } else {
-            console.log('✅ No duplicates found!\n');
+            console.log(`\n✅ Successfully removed ${removedCount} duplicate vendor(s)!`);
+            console.log('🔄 Your monitoring logs should now have single entries per check.');
         }
 
-        // Show final vendors
-        const finalVendors = await Vendor.find({});
-        console.log(`📊 Final Vendor Count: ${finalVendors.length}\n`);
-
-        finalVendors.forEach(vendor => {
-            console.log(`   ✓ ${vendor.name}`);
-            console.log(`     URL: ${vendor.url}`);
-            console.log(`     Check Frequency: ${vendor.checkFrequency} min`);
-            console.log(`     Timeout: ${vendor.timeoutDuration}s\n`);
-        });
-
     } catch (error) {
-        console.error('❌ Error:', error.message);
+        console.error('❌ Error:', error);
     } finally {
-        await mongoose.connection.close();
-        console.log('👋 Disconnected from MongoDB');
-        process.exit(0);
+        await mongoose.disconnect();
+        console.log('\n✅ Disconnected');
     }
 };
 
-removeDuplicates();
+removeDuplicateVendors();

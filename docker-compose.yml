@@ -1,0 +1,67 @@
+
+
+services:
+
+  # ── MongoDB Container ──────────────────────────────────────
+  mongo:
+    image: mongo:7          # pulls official MongoDB image, no Dockerfile needed
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"       # optional: lets you connect via MongoDB Compass locally
+    volumes:
+      - mongo_data:/data/db # persists data even if container restarts
+    networks:
+      - app-network
+
+  # ── Backend Container ──────────────────────────────────────
+  backend:
+    build:
+      context: ./vendorvigil/backend    # folder where backend Dockerfile lives
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      # Use 'mongo' as host because that's the service name above
+      # Docker resolves service names as hostnames automatically
+      - MONGODB_URI=mongodb://mongo:27017/vendorvigil
+      - FRONTEND_URL=http://localhost:3000
+      # Add your other env vars below (JWT_SECRET, email creds, etc.)
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+    depends_on:
+      - mongo                # backend waits for mongo to start first
+    networks:
+      - app-network
+
+  # ── Frontend Container ─────────────────────────────────────
+  frontend:
+    build:
+      context: ./vendorvigil/frontend   # folder where frontend Dockerfile lives
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"           # your browser hits localhost:3000 → Nginx port 80
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+# ── Shared Network ─────────────────────────────────────────
+# All containers talk to each other by service name (e.g., http://backend:5000)
+networks:
+  app-network:
+    driver: bridge
+
+# ── Persistent Volume for MongoDB ─────────────────────────
+volumes:
+  mongo_data:
