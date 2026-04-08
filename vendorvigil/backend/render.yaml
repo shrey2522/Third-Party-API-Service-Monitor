@@ -9,6 +9,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 5000
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
@@ -24,8 +26,6 @@ services:
       - key: SLACK_WEBHOOK_URL
         sync: false
       - key: FRONTEND_URL
-        sync: false
-      - key: MASTER_ENCRYPTION_KEY
         sync: false
     healthCheckPath: /api/health
     autoDeploy: true

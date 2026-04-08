@@ -20,13 +20,11 @@ const initializeCronJobs = () => {
     console.log('✅ Cron scheduler initialized (every 5 minutes)');
     console.log('📋 Monitoring will run automatically in the background\n');
 
-/* 
     // Run initial health check after 2 seconds (give DB time to connect)
     setTimeout(() => {
         console.log('🚀 Running initial health check...\n');
         pingerService.pingAllVendors();
     }, 2000);
-    */
 };
 
 module.exports = { initializeCronJobs };

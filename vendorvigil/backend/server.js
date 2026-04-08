@@ -7,15 +7,27 @@ const { initializeCronJobs } = require('./utils/cronScheduler');
 const app = express();
 
 // Middleware
-const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : '*';
-console.log(`📡 CORS: Allowing origin ${frontendUrl}`);
+const allowedOrigins = [
+    'https://third-party-api-service-monitor.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:5174'
+];
 
 app.use(cors({
-    origin: frontendUrl,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            return callback(null, true); // Fallback to allow during transition
+        }
+        return callback(null, true);
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: true,
+    optionsSuccessStatus: 204
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -40,15 +52,13 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// TODO: Add API routes in Phase 4
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/vendors', require('./routes/vendorRoutes'));
 
-// Add this temporarily to backend/server.js to test
+// Test endpoint
 app.get('/api/test-private', (req, res) => {
     const apiKey = req.headers['x-test-key'];
-    console.log(`🔍 Test Private API called with key: ${apiKey}`);
     if (apiKey === 'SECRET_123') {
         res.status(200).json({ message: 'Success! You accessed a private API.' });
     } else {
