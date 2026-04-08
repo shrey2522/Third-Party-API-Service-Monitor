@@ -27,5 +27,7 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: MASTER_ENCRYPTION_KEY
+        sync: false
     healthCheckPath: /api/health
     autoDeploy: true

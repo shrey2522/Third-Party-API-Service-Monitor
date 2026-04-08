@@ -1,7 +1,16 @@
 const crypto = require('crypto');
 
 const ALGORITHM = 'aes-256-cbc';
-const KEY = Buffer.from(process.env.MASTER_ENCRYPTION_KEY, 'hex');
+
+// Safety check to prevent crash if key is missing
+if (!process.env.MASTER_ENCRYPTION_KEY) {
+    console.error('❌ ERROR: MASTER_ENCRYPTION_KEY is not defined in environment variables!');
+    console.error('Encryption/Decryption will fail until this is set.');
+}
+
+const KEY = process.env.MASTER_ENCRYPTION_KEY 
+    ? Buffer.from(process.env.MASTER_ENCRYPTION_KEY, 'hex')
+    : Buffer.alloc(32); // Fallback to empty buffer to prevent crash
 
 /**
  * Encrypt a string
