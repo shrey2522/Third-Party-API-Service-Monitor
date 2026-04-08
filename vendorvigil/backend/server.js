@@ -7,8 +7,11 @@ const { initializeCronJobs } = require('./utils/cronScheduler');
 const app = express();
 
 // Middleware
+const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : '*';
+console.log(`📡 CORS: Allowing origin ${frontendUrl}`);
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || '*', // Use environment variable in production, wildcard for development
+    origin: frontendUrl,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -67,8 +70,8 @@ initializeCronJobs();
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
-    console.log(`📍 API: http://localhost:${PORT}\n`);
+    console.log(`📍 API: http://0.0.0.0:${PORT}\n`);
 });
