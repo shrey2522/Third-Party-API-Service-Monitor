@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown, Plus, Trash2, Eye, EyeOff, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Button from '../ui/Button';
 
@@ -10,6 +10,7 @@ const VendorModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
     const [frequency, setFrequency] = useState(5);
     const [slackWebhook, setSlackWebhook] = useState('');
     const [alertEmail, setAlertEmail] = useState('');
+    const [headers, setHeaders] = useState([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -32,6 +33,7 @@ const VendorModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
                 }
                 setSlackWebhook(initialData.slackWebhook || '');
                 setAlertEmail(initialData.alertEmail || '');
+                setHeaders(initialData.headers || []);
             } else {
                 setName('');
                 setProtocol('https://');
@@ -39,6 +41,7 @@ const VendorModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
                 setFrequency(5);
                 setSlackWebhook('');
                 setAlertEmail('');
+                setHeaders([]);
             }
         }
     }, [isOpen, initialData]);
@@ -53,7 +56,8 @@ const VendorModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
                 url: fullUrl, 
                 checkFrequency: Number(frequency),
                 slackWebhook,
-                alertEmail
+                alertEmail,
+                headers
             });
             onClose();
         } catch (error) {
@@ -61,6 +65,20 @@ const VendorModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const addHeader = () => {
+        setHeaders([...headers, { key: '', value: '', isSecret: false }]);
+    };
+
+    const updateHeader = (index, field, value) => {
+        const newHeaders = [...headers];
+        newHeaders[index][field] = value;
+        setHeaders(newHeaders);
+    };
+
+    const removeHeader = (index) => {
+        setHeaders(headers.filter((_, i) => i !== index));
     };
 
     if (!isOpen) return null;
@@ -164,6 +182,62 @@ const VendorModal = ({ isOpen, onClose, onSubmit, initialData = null }) => {
                                         placeholder="alerts@example.com"
                                     />
                                 </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-700">
+                            <div className="flex justify-between items-center mb-3">
+                                <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Custom Headers / Secrets</h4>
+                                <button 
+                                    type="button" 
+                                    onClick={addHeader}
+                                    className="text-blue-400 hover:text-blue-300 text-xs font-semibold flex items-center gap-1 transition-colors"
+                                >
+                                    <Plus size={14} /> Add Header
+                                </button>
+                            </div>
+                            
+                            <div className="space-y-3 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-700">
+                                {headers.length === 0 && (
+                                    <p className="text-xs text-gray-500 italic">No custom headers added. Add one for authenticated APIs (AWS, Razorpay, etc.)</p>
+                                )}
+                                {headers.map((header, index) => (
+                                    <div key={index} className="flex gap-2 items-start bg-gray-900/50 p-2 rounded-lg border border-gray-700/50">
+                                        <div className="flex-1 space-y-2">
+                                            <input
+                                                type="text"
+                                                value={header.key}
+                                                onChange={(e) => updateHeader(index, 'key', e.target.value)}
+                                                className="w-full px-2 py-1 text-xs rounded bg-gray-900 border border-gray-700 text-white outline-none focus:border-blue-500"
+                                                placeholder="Key (e.g. x-api-key)"
+                                            />
+                                            <div className="relative">
+                                                <input
+                                                    type={header.isSecret ? "password" : "text"}
+                                                    value={header.value}
+                                                    onChange={(e) => updateHeader(index, 'value', e.target.value)}
+                                                    className="w-full px-2 py-1 text-xs rounded bg-gray-900 border border-gray-700 text-white outline-none focus:border-blue-500 pr-8"
+                                                    placeholder="Value (or Secret Key)"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateHeader(index, 'isSecret', !header.isSecret)}
+                                                    className={`absolute right-2 top-1/2 -translate-y-1/2 ${header.isSecret ? 'text-blue-400' : 'text-gray-500'} hover:text-white transition-colors`}
+                                                    title={header.isSecret ? "Secret Key (Encrypted)" : "Public Header"}
+                                                >
+                                                    {header.isSecret ? <Lock size={12} /> : <Eye size={12} />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeHeader(index)}
+                                            className="text-gray-500 hover:text-red-400 transition-colors pt-1"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 

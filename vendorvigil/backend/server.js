@@ -42,6 +42,17 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/vendors', require('./routes/vendorRoutes'));
 
+// Add this temporarily to backend/server.js to test
+app.get('/api/test-private', (req, res) => {
+    const apiKey = req.headers['x-test-key'];
+    console.log(`🔍 Test Private API called with key: ${apiKey}`);
+    if (apiKey === 'SECRET_123') {
+        res.status(200).json({ message: 'Success! You accessed a private API.' });
+    } else {
+        res.status(401).json({ message: 'Unauthorized! Missing or invalid key.' });
+    }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

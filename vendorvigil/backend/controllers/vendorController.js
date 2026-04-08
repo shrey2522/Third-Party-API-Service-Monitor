@@ -1,5 +1,6 @@
 const Vendor = require('../models/Vendor');
 const Log = require('../models/Log');
+const { encrypt } = require('../utils/cryptoUtils');
 
 // @desc    Get vendors with latest log status
 // @route   GET /api/vendors
@@ -29,7 +30,16 @@ const getVendors = async (req, res) => {
             { $sort: { createdAt: -1 } }
         ]);
 
-        res.status(200).json(vendors);
+        // Mask secrets to prevent leaking even encrypted blobs to frontend
+        const maskedVendors = vendors.map(vendor => ({
+            ...vendor,
+            headers: vendor.headers?.map(header => ({
+                ...header,
+                value: header.isSecret ? '********' : header.value
+            }))
+        }));
+
+        res.status(200).json(maskedVendors);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -39,7 +49,7 @@ const getVendors = async (req, res) => {
 // @route   POST /api/vendors
 // @access  Private
 const addVendor = async (req, res) => {
-    const { name, url, checkFrequency, slackWebhook, alertEmail } = req.body;
+    const { name, url, checkFrequency, slackWebhook, alertEmail, headers } = req.body;
 
     if (!name || !url) {
         return res.status(400).json({ message: 'Please add name and url' });
@@ -52,7 +62,11 @@ const addVendor = async (req, res) => {
             checkFrequency: checkFrequency || 5,
             slackWebhook,
             alertEmail,
-            user: req.user.id
+            user: req.user.id,
+            headers: headers?.map(h => ({
+                ...h,
+                value: h.isSecret ? encrypt(h.value) : h.value
+            }))
         });
 
         res.status(201).json(vendor);
@@ -165,7 +179,16 @@ const getVendorById = async (req, res) => {
             return res.status(401).json({ message: 'User not authorized' });
         }
 
-        res.status(200).json(vendor);
+        // Mask secrets
+        const maskedVendor = vendor.toObject();
+        if (maskedVendor.headers) {
+            maskedVendor.headers = maskedVendor.headers.map(h => ({
+                ...h,
+                value: h.isSecret ? '********' : h.value
+            }));
+        }
+
+        res.status(200).json(maskedVendor);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -173,7 +196,7 @@ const getVendorById = async (req, res) => {
 
 const updateVendor = async (req, res) => {
     try {
-        const { name, url, checkFrequency, slackWebhook, alertEmail } = req.body;
+        const { name, url, checkFrequency, slackWebhook, alertEmail, headers } = req.body;
         const vendor = await Vendor.findById(req.params.id);
 
         if (!vendor) {
@@ -189,6 +212,22 @@ const updateVendor = async (req, res) => {
         vendor.checkFrequency = checkFrequency || vendor.checkFrequency;
         vendor.slackWebhook = slackWebhook !== undefined ? slackWebhook : vendor.slackWebhook;
         vendor.alertEmail = alertEmail !== undefined ? alertEmail : vendor.alertEmail;
+        
+        if (headers) {
+            vendor.headers = headers.map(h => {
+                // If it's a secret and it's masked (starts with ****), 
+                // we keep the existing encrypted value from the database.
+                if (h.isSecret && h.value.startsWith('****')) {
+                    const existingHeader = vendor.headers.find(old => old.key === h.key);
+                    return { ...h, value: existingHeader ? existingHeader.value : h.value };
+                }
+                // Otherwise, if it's a secret and it's new (unmasked), we encrypt it.
+                return {
+                    ...h,
+                    value: h.isSecret ? encrypt(h.value) : h.value
+                };
+            });
+        }
 
         await vendor.save();
 

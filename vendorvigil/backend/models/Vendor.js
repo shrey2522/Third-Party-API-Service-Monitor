@@ -62,7 +62,12 @@ const vendorSchema = new mongoose.Schema({
     isAlertSent: {
         type: Boolean,
         default: false
-    }
+    },
+    headers: [{
+        key: { type: String, trim: true },
+        value: { type: String }, // Will store encrypted value if isSecret is true
+        isSecret: { type: Boolean, default: false }
+    }]
 }, {
     timestamps: true
 });

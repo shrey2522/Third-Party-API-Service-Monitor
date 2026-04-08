@@ -4,6 +4,7 @@ const Log = require('../models/Log');
 const Incident = require('../models/Incident');
 const sendEmail = require('./emailService');
 const sendSlackAlert = require('./slackService');
+const { decrypt } = require('../utils/cryptoUtils');
 
 /**
  * Main function to ping all active vendors
@@ -68,8 +69,17 @@ const pingVendor = async (vendor) => {
     };
 
     try {
-        // Make HTTP request with user-defined timeout
+        // Process headers (decrypt secrets)
+        const requestHeaders = {};
+        if (vendor.headers && vendor.headers.length > 0) {
+            vendor.headers.forEach(h => {
+                requestHeaders[h.key] = h.isSecret ? decrypt(h.value) : h.value;
+            });
+        }
+
+        // Make HTTP request with user-defined timeout and custom headers
         const response = await axios.get(vendor.url, {
+            headers: requestHeaders,
             timeout: vendor.timeoutDuration * 1000, // Convert seconds to milliseconds
             validateStatus: (status) => status < 500 // Don't throw on 4xx errors
         });
