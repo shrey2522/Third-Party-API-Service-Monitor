@@ -1,7 +1,10 @@
 const axios = require('axios');
 
 const sendSlackAlert = async (webhookUrl, message) => {
-    if (!webhookUrl) return false;
+    if (!webhookUrl) {
+        console.log('⚠️  No Slack webhook URL provided. Alert skipped.');
+        return false;
+    }
 
     try {
         await axios.post(webhookUrl, {
@@ -16,6 +19,7 @@ const sendSlackAlert = async (webhookUrl, message) => {
                 }
             ]
         });
+        console.log('✅ Slack alert sent successfully!');
         return true;
     } catch (error) {
         console.error('❌ Error sending Slack alert:', error.message);

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Trash2, ExternalLink, Play, Pause, AlertCircle, CheckCircle2, BarChart2 } from 'lucide-react';
 import Button from '../ui/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../ui/Card';
+import Tooltip from '../ui/Tooltip';
 
 const VendorCard = ({ vendor, onToggle, onDelete }) => {
   const navigate = useNavigate();
@@ -42,25 +43,34 @@ const VendorCard = ({ vendor, onToggle, onDelete }) => {
       transition={{ duration: 0.3 }}
       className={!isActive ? 'grayscale opacity-75' : ''}
     >
-      <Card className="relative overflow-hidden group hover:border-blue-500/50 transition-colors bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800">
-        <div className={`absolute top-0 left-0 w-1 h-full ${statusColor} transition-colors duration-300`} />
+      <Card className="relative group hover:border-blue-500/50 transition-colors bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800">
+        <div className={`absolute top-0 left-0 w-1 h-full ${statusColor} transition-colors duration-300 rounded-l-xl`} />
         
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors" onClick={() => navigate(`/vendor/${vendor._id}`)}>
-            {vendor.name}
-            <a 
+        <CardHeader className="flex flex-row items-center justify-between pb-2 min-h-[72px] gap-2">
+          <div className="flex flex-col flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <CardTitle 
+                className="text-lg font-bold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-500 transition-colors"
+                onClick={() => navigate(`/vendor/${vendor._id}`)}
+              >
+                {vendor.name}
+              </CardTitle>
+              <a 
                 href={vendor.url} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="text-gray-500 hover:text-blue-400 transition-colors"
-                title="Visit API"
-            >
-                <ExternalLink size={16} />
-            </a>
-          </CardTitle>
-          <div className="flex items-center gap-2">
-             <span className={`flex h-3 w-3 rounded-full ${statusColor} shadow-[0_0_8px] shadow-${statusColor.replace('bg-', '')}/50 ${isActive && latestLog ? 'animate-pulse' : ''}`} />
-             <span className={`text-xs font-medium ${statusColor.replace('bg-', 'text-').replace('500', '400')}`}>
+                className="p-1 rounded-md text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-all flex-shrink-0"
+                title={`Visit ${vendor.url}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <ExternalLink size={14} />
+              </a>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 flex-shrink-0 pl-2">
+             <span className={`flex h-2.5 w-2.5 rounded-full ${statusColor} ${isActive && latestLog ? 'animate-pulse' : ''}`} />
+             <span className={`text-[10px] font-bold uppercase tracking-wider ${statusColor.replace('bg-', 'text-').replace('500', '400')}`}>
                 {statusText}
              </span>
           </div>

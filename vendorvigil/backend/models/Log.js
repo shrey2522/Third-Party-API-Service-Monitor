@@ -35,7 +35,11 @@ const logSchema = new mongoose.Schema({
     }
 });
 
-// Index for faster queries
+// Index for faster queries by vendor + time
 logSchema.index({ vendorId: 1, timestamp: -1 });
+
+// TTL index — auto-delete logs older than 30 days
+// The background thread runs every ~60s to delete expired documents
+logSchema.index({ timestamp: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 module.exports = mongoose.model('Log', logSchema);

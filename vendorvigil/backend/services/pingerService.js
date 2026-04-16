@@ -6,6 +6,18 @@ const sendEmail = require('./emailService');
 const sendSlackAlert = require('./slackService');
 const { decrypt } = require('../utils/cryptoUtils');
 
+// Cap concurrent outbound HTTP pings — prevents memory spike when 100s of
+// vendors are all due for checking at the same moment
+const PING_CONCURRENCY_LIMIT = 50;
+// p-limit v6+ is ESM-only; in a CommonJS project we must use dynamic import
+// We initialise it once at startup via an async IIFE so it's ready before any
+// cron job fires.
+let limit;
+(async () => {
+    const { default: pLimit } = await import('p-limit');
+    limit = pLimit(PING_CONCURRENCY_LIMIT);
+})();
+
 /**
  * Main function to ping all active vendors
  */
@@ -30,7 +42,7 @@ const pingAllVendors = async () => {
             const nextCheckTime = new Date(lastChecked.getTime() + vendor.checkFrequency * 60000); // min to ms
 
             if (now >= nextCheckTime || !vendor.lastCheckedAt) {
-                pingPromises.push(pingVendor(vendor));
+                pingPromises.push(limit(() => pingVendor(vendor)));
             } else {
                  // Debug log (optional, disable in prod to reduce noise)
                  // console.log(`Skipping ${vendor.name}: Next check at ${nextCheckTime.toLocaleTimeString()}`);
@@ -129,11 +141,12 @@ const pingVendor = async (vendor) => {
     try {
         await Log.create(logData);
 
-        // Update lastCheckedAt
+        // Update lastCheckedAt on vendor, then run the alert check.
+        // NOTE: vendor.save() is intentionally NOT called here.
+        // checkAndAlert() is responsible for making all final mutations
+        // to the vendor document and calling vendor.save() exactly ONCE,
+        // eliminating the previous double-save bug.
         vendor.lastCheckedAt = new Date();
-        await vendor.save();
-
-        // Check if alert is needed based on consecutive failures
         await checkAndAlert(vendor, logData.status);
     } catch (dbError) {
         console.error(`❌ Failed to save log/vendor for ${vendor.name}:`, dbError.message);
@@ -164,17 +177,16 @@ const checkAndAlert = async (vendor, currentStatus) => {
 
         if (activeIncidents.length > 0) {
             console.log(`✅ ${vendor.name}: Service recovered, incident resolved`);
-            
-            // Send Recovery Alert
+
             const recoveryMessage = `✅ Service Recovered: ${vendor.name} is back online after ${activeIncidents[0].duration} minutes.`;
-            
+
             // Send Slack
             const webhookUrl = vendor.slackWebhook || process.env.SLACK_WEBHOOK_URL;
             if (webhookUrl) {
                 await sendSlackAlert(webhookUrl, recoveryMessage);
             }
 
-            // Send Email (Default to vendor.user.email if alertEmail is empty)
+            // Send Email
             const emailToSend = vendor.alertEmail || (vendor.user && vendor.user.email);
             if (emailToSend) {
                 await sendEmail({
@@ -183,21 +195,26 @@ const checkAndAlert = async (vendor, currentStatus) => {
                     html: `<h3>Service Recovered</h3><p><strong>${vendor.name}</strong> is back online.</p><p>URL: ${vendor.url}</p><p>Downtime: ${activeIncidents[0].duration} minutes</p>`
                 });
             }
-            
-            // Reset alert sent flag
+
+            // Reset flags
             vendor.isAlertSent = false;
             vendor.consecutiveFailures = 0;
-            await vendor.save();
         }
+
+        // Single save — covers lastCheckedAt + any reset flags above
+        await vendor.save();
         return;
     }
+
+    // ── DOWN / FAILURE PATH ──────────────────────────────────────────────
+    // Update consecutive failures counter
+    vendor.consecutiveFailures = (vendor.consecutiveFailures || 0) + 1;
 
     // Get last N logs (where N = alertThreshold)
     const recentLogs = await Log.find({ vendorId: vendor._id })
         .sort({ timestamp: -1 })
         .limit(vendor.alertThreshold);
 
-    // Check if all recent logs are failures
     const allFailed = recentLogs.every(log => log.status === 'Down');
     const hasEnoughLogs = recentLogs.length === vendor.alertThreshold;
 
@@ -209,32 +226,27 @@ const checkAndAlert = async (vendor, currentStatus) => {
         });
 
         if (!activeIncident) {
-            // Create new incident
             await Incident.create({
                 vendorId: vendor._id,
                 startTime: new Date(),
                 consecutiveFailures: vendor.alertThreshold,
                 alertSent: false
             });
-
             console.log(`🚨 ALERT: ${vendor.name} has failed ${vendor.alertThreshold} consecutive times!`);
         } else {
-            // Update existing incident with new failure count
             activeIncident.consecutiveFailures += 1;
             await activeIncident.save();
         }
 
-        // Send DOWN Alert if not already sent (Check this regardless of whether incident is new or existing)
+        // Send alert only once per downtime event
         if (!vendor.isAlertSent) {
             const alertMessage = `🚨 Service Down: ${vendor.name} has failed ${vendor.alertThreshold} consecutive checks. URL: ${vendor.url}`;
-            
-            // Send Slack
+
             const webhookUrl = vendor.slackWebhook || process.env.SLACK_WEBHOOK_URL;
             if (webhookUrl) {
                await sendSlackAlert(webhookUrl, alertMessage);
             }
 
-            // Send Email (Default to vendor.user.email if alertEmail is empty)
             const emailToSend = vendor.alertEmail || (vendor.user && vendor.user.email);
             if (emailToSend) {
                 await sendEmail({
@@ -245,26 +257,10 @@ const checkAndAlert = async (vendor, currentStatus) => {
             }
 
             vendor.isAlertSent = true;
-            await vendor.save();
         }
-    } else {
-        // Just increment failures if threshold not reached yet
-        if (!allFailed) {
-            // If we have some successes mixed in (flapping), maybe resetting failures is safer depending on logic
-            // But here we rely on streak. If the recent log was DOWN, we are building a streak.
-            // Actually, we should fundamentally track consecutive failures on the vendor object itself for simplicity instead of just logs.
-            // But sticking to the current `recentLogs` logic:
-             // If NOT all failed, we don't alert.
-        }
-        
     }
-    
-    // Update simple counter on vendor for quick access
-    if (currentStatus === 'Down') {
-         vendor.consecutiveFailures += 1;
-    } else {
-         vendor.consecutiveFailures = 0;
-    }
+
+    // Single guaranteed save — covers lastCheckedAt + consecutiveFailures + isAlertSent
     await vendor.save();
 };
 

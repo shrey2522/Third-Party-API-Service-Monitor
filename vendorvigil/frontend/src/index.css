@@ -1,8 +1,16 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+@theme {
+  --shadow-input: 0px 2px 3px -1px rgba(0,0,0,0.1), 0px 1px 0px 0px rgba(25,28,33,0.02), 0px 0px 0px 1px rgba(25,28,33,0.08);
+}
+
 @layer base {
   body {
     @apply transition-colors duration-300;
   }
+}
+
+.shadow-input {
+  box-shadow: var(--shadow-input);
 }
